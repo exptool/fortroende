@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Förtroendebarometer - Grönskärm för Premiere</title>
+    <style>
+        @font-face {
+            font-family: 'Siri Expressen Black Condensed';
+            src: url('SiriExpressen-BlackCondensed.otf') format('opentype');
+        }
+        body { 
+            background: #1e1e1e; 
+            color: #fff; 
+            font-family: sans-serif; 
+            margin: 0;
+            padding: 2vw;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        .app-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            justify-content: center;
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+        h2 { 
+            margin-top: 0; 
+            font-family: 'Siri Expressen Black Condensed', sans-serif;
+            font-size: clamp(20px, 1.5vw, 26px);
+            border-bottom: 2px solid #444;
+            padding-bottom: 10px;
+        }
+        .panel { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 15px; 
+            flex: 1 1 350px;
+            max-width: 450px;
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .party-input-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #333;
+        }
+        input[type="number"] {
+            background: #ffffff;
+            border: 1px solid #ccc;
+            color: #000000;
+            border-radius: 4px;
+            text-align: right;
+            width: 70px;
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+            padding-right: 10px;
+            font-size: 18px;
+            height: 34px;
+        }
+        input[type="range"] {
+            width: 100%;
+            margin-top: 8px;
+            cursor: pointer;
+        }
+        .editor-controls {
+            background: #333;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            border: 1px solid #555;
+        }
+        .value-readout {
+            margin-top: 10px; 
+            padding: 10px; 
+            background: #111; 
+            border-radius: 6px; 
+            font-family: monospace; 
+            font-size: 15px; 
+            color: #00FF00;
+            border: 1px solid #00FF00;
+        }
+        button {
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: transform 0.1s, opacity 0.2s;
+            width: 100%;
+            font-family: 'Siri Expressen Black Condensed', sans-serif; 
+            font-size: clamp(18px, 1.5vw, 22px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            padding: 15px;
+            margin-top: 5px;
+        }
+        button:hover { 
+            opacity: 0.9; 
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            background: #666 !important;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        #canvasEditor { 
+            width: 100%; 
+            height: auto; 
+            max-height: 70vh;
+            background-image: linear-gradient(45deg, #333 25%, transparent 25%), linear-gradient(-45deg, #333 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #333 75%), linear-gradient(-45deg, transparent 75%, #333 75%);
+            background-size: 20px 20px; 
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            border: 2px solid #555;
+            border-radius: 8px;
+            cursor: grab;
+        }
+        #canvasEditor:active {
+            cursor: grabbing;
+        }
+
+        .canvas-transparent {
+            background-image: linear-gradient(45deg, #333 25%, transparent 25%), linear-gradient(-45deg, #333 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #333 75%), linear-gradient(-45deg, transparent 75%, #333 75%);
+            background-size: 20px 20px; 
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+        
+        .canvas-greenscreen {
+            background-color: #00FF00 !important; 
+            background-image: none !important;
+        }
+
+        #canvasResult {
+            width: 100%; 
+            height: auto; 
+            max-height: 70vh;
+            border: 2px solid #555;
+            border-radius: 8px;
+            transition: background-color 0.3s;
+        }
+
+        .font-preload { font-family: 'Siri Expressen Black Condensed'; visibility: hidden; position: absolute; }
+        .info-text { font-size: 14px; color: #aaa; font-family: Arial, sans-serif; line-height: 1.4; }
+        
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #333;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            border: 1px solid #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="font-preload">Preload</div>
+
+    <div class="app-container">
+        <!-- STEG 1: DATA -->
+        <div class="panel">
+            <h2>1. Fyll i värden (%)</h2>
+            <div id="inputs"></div>
+        </div>
+
+        <!-- STEG 2: REDIGERING -->
+        <div class="panel">
+            <h2>2. Redigera ansikten</h2>
+            <p class="info-text">Klicka och dra i ansiktena direkt i bilden nedan för att flytta dem.</p>
+            <canvas id="canvasEditor" width="1080" height="1920"></canvas>
+            
+            <div class="editor-controls">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 5px;">
+                    <strong id="selected-name" style="font-family: Arial, sans-serif;">Klicka på ett ansikte i diagrammet</strong>
+                </div>
+                <label style="font-size: 13px; font-family: Arial, sans-serif; color: #ccc;">Ändra storlek på valt ansikte:</label>
+                <input type="range" id="selected-scale" min="0.5" max="2" step="0.02" value="1" disabled oninput="updateScale()">
+                
+                <div class="value-readout">
+                    <div>Scale: <span id="out-scale">-</span></div>
+                    <div>X-Offset: <span id="out-x">-</span></div>
+                    <div>Y-Offset: <span id="out-y">-</span></div>
+                </div>
+                <p style="font-size: 12px; font-family: Arial; color: #888; margin-top: 10px; margin-bottom: 0;">
+                    Kopiera dessa värden till AI:n när du är nöjd, så sparas de som ny standard.
+                </p>
+            </div>
+        </div>
+
+        <!-- STEG 3: RESULTAT & NEDLADDNING -->
+        <div class="panel" style="display: flex; flex-direction: column;">
+            <h2>3. Slutresultat & Export</h2>
+            <p class="info-text">Slå på grönskärm innan inspelning om du klipper i Premiere.</p>
+            <canvas id="canvasResult" class="canvas-transparent" width="1080" height="1920"></canvas>
+            
+            <div class="toggle-container">
+                <label for="greenscreen-toggle" style="font-family: Arial, sans-serif; font-size: 14px; font-weight: bold; cursor: pointer;">
+                    Slå på Grönskärm (Green Screen)
+                </label>
+                <input type="checkbox" id="greenscreen-toggle" onchange="toggleGreenScreen()" style="width: 20px; height: 20px; cursor: pointer;">
+            </div>
+
+            <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px; padding-top: 15px;">
+                <button id="btn-png" onclick="downloadPNG()" style="background: #006DBB; color: white;">1. Ladda ner Stillbild (PNG)</button>
+                <button id="btn-video" onclick="startRecording()" style="background: #E50000; color: white;">2. Spela in Animerad Video (MP4/WebM)</button>
+                <div id="rec-status" style="display: none; text-align: center; color: #ff5555; font-family: Arial; font-weight: bold; font-size: 14px;">Inspelning pågår... (vänta ca 3 sek)</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const leaders = [
+            { id: 'V', name: 'Nooshi Dadgostar', color: '#DB0000', img: 'V.png', value: 0, scale: 1, offsetX: 0, offsetY: 0 },
+            { id: 'S', name: 'Magdalena Andersson', color: '#FF0027', img: 'S.png', value: 0, scale: 1, offsetX: 0, offsetY: 0 },
+            { id: 'MP', name: 'Amanda Lind', color: '#30A234', img: 'MP1.png', value: 0, scale: 1, offsetX: 0, offsetY: 0 },
+            { id: 'MP', name: 'Daniel Helldén', color: '#30A234', img: 'MP2.png', value: 0, scale: 1, offsetX: 0, offsetY: 0 },
+            { id: 'C', name: 'Elisabeth Thand Ringqvist', color: '#004937', img: 'C.png', value: 0, scale: 1, offsetX: 0, offsetY: 0 },
+            { id: 'L', name: 'Simona Mohamsson', color: '#006DBB', img: 'L.png', value: 0, scale: 1, offsetX: 0, offsetY: 0 },
+            { id: 'KD', name: 'Ebba Busch', color: '#0D15BC', img: 'KD.png', value: 0, scale: 1, offsetX: 0, offsetY: 0 },
+            { id: 'M', name: 'Ulf Kristersson', color: '#195393', img: 'M.png', value: 0, scale: 1, offsetX: 0, offsetY: 0 },
+            { id: 'SD', name: 'Jimmie Åkesson', color: '#FFD500', img: 'SD.png', value: 0, scale: 1, offsetX: 0, offsetY: 0 }
+        ];
+
+        const loadedImages = {};
+        let imagesLoaded = 0;
+        
+        let selectedIdx = -1;
+        let isDragging = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+        
+        let isRecording = false;
+        let useGreenScreen = false;
+
+        function preloadImages() {
+            leaders.forEach(leader => {
+                const img = new Image();
+                img.onload = () => {
+                    loadedImages[leader.img] = img;
+                    imagesLoaded++;
+                    if (imagesLoaded === leaders.length) drawCharts();
+                };
+                img.onerror = () => {
+                    console.error("Kunde inte ladda bild:", leader.img);
+                    imagesLoaded++;
+                    if (imagesLoaded === leaders.length) drawCharts();
+                };
+                img.src = leader.img;
+            });
+        }
+
+        function createInputs() {
+            const container = document.getElementById('inputs');
+            container.innerHTML = '';
+            leaders.forEach((l, i) => {
+                container.innerHTML += `
+                <div class="party-input-row">
+                    <div style="display: flex; align-items: center;">
+                        <div style="width: 18px; height: 18px; background-color: ${l.color}; border-radius: 4px; margin-right: 12px; border: 1px solid rgba(255,255,255,0.2);"></div>
+                        <label style="color: #ffffff; font-size: clamp(16px, 1vw, 20px); font-family: 'Siri Expressen Black Condensed', sans-serif; letter-spacing: 0.5px;">${l.name}</label>
+                    </div>
+                    <input type="number" id="val_${i}" value="${l.value}" step="1" oninput="updateValues()" ${isRecording ? 'disabled' : ''}>
+                </div>`;
+            });
+        }
+
+        function updateValues() {
+            if (isRecording) return;
+            leaders.forEach((l, i) => {
+                const valInput = document.getElementById(`val_${i}`);
+                if (valInput) l.value = parseInt(valInput.value) || 0;
+            });
+            drawCharts();
+        }
+
+        function updateScale() {
+            if (isRecording) return;
+            if (selectedIdx !== -1) {
+                const scaleSlider = document.getElementById('selected-scale');
+                leaders[selectedIdx].scale = parseFloat(scaleSlider.value);
+                
+                document.getElementById('out-scale').innerText = leaders[selectedIdx].scale.toFixed(2);
+                
+                drawCharts();
+            }
+        }
+        
+        function toggleGreenScreen() {
+            useGreenScreen = document.getElementById('greenscreen-toggle').checked;
+            const resCanvas = document.getElementById('canvasResult');
+            
+            if (useGreenScreen) {
+                resCanvas.classList.remove('canvas-transparent');
+                resCanvas.classList.add('canvas-greenscreen');
+            } else {
+                resCanvas.classList.remove('canvas-greenscreen');
+                resCanvas.classList.add('canvas-transparent');
+            }
+            drawCharts();
+        }
+
+        function drawCharts() {
+            if (isRecording) return; 
+            
+            document.fonts.ready.then(() => {
+                const editorCtx = document.getElementById('canvasEditor').getContext('2d');
+                const resultCtx = document.getElementById('canvasResult').getContext('2d');
+                
+                editorCtx.clearRect(0, 0, 1080, 1920);
+                resultCtx.clearRect(0, 0, 1080, 1920);
+
+                // Rita editorn normalt
+                drawTrust(editorCtx, true, 1, false);
+                
+                // Rita resultatet
+                drawTrust(resultCtx, false, 1, useGreenScreen);
+            });
+        }
+
+        function applyGlobalShadow(ctx) {
+            ctx.shadowColor = "rgba(0,0,0,0.6)"; 
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
+        }
+
+        function resetShadow(ctx) {
+            ctx.shadowColor = "transparent";
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
+        }
+
+        function drawTrust(ctx, isEditor, progress, applyGreenScreen) {
+            if (applyGreenScreen) {
+                ctx.fillStyle = "#00FF00";
+                ctx.fillRect(0, 0, 1080, 1920);
+            }
+
+            const startX = 220; 
+            const boxSize = 96;
+            const gap = 16;
+            const rowSpacing = 28; 
+            const scale = 8.5; 
+
+            // DEL 1: RITA DIAGRAMMET
+            leaders.forEach((l, i) => {
+                const startY = 320 + i * (boxSize + rowSpacing);
+                const currentVal = l.value * progress;
+                
+                applyGlobalShadow(ctx);
+                ctx.fillStyle = l.color;
+                roundRect(ctx, startX, startY, boxSize, boxSize, [24, 0, 24, 0]);
+                ctx.fill();
+                
+                resetShadow(ctx);
+                ctx.strokeStyle = "white";
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                applyGlobalShadow(ctx);
+                ctx.fillStyle = "white";
+                ctx.font = "50px 'Siri Expressen Black Condensed', sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(l.id, startX + boxSize/2, startY + boxSize/2 + 5);
+
+                const barWidth = currentVal * scale;
+                const barX = startX + boxSize + gap;
+                
+                if (barWidth > 0) {
+                    applyGlobalShadow(ctx);
+                    ctx.fillStyle = l.color;
+                    roundRect(ctx, barX, startY, barWidth, boxSize, [24, 0, 24, 0]);
+                    ctx.fill();
+                    resetShadow(ctx);
+                    ctx.stroke();
+                }
+
+                applyGlobalShadow(ctx);
+                ctx.fillStyle = "white";
+                ctx.font = "75px 'Siri Expressen Black Condensed', sans-serif";
+                ctx.textAlign = "left";
+                const displayVal = Math.round(currentVal) + "%";
+                ctx.fillText(displayVal, barX + Math.max(barWidth, 0) + 20, startY + boxSize/2 + 5);
+                resetShadow(ctx);
+            });
+
+            // DEL 2: RITA ANSIKTENA
+            leaders.forEach((l, i) => {
+                const startY = 320 + i * (boxSize + rowSpacing);
+                
+                if (loadedImages[l.img]) {
+                    const img = loadedImages[l.img];
+                    const aspect = img.naturalWidth / img.naturalHeight;
+                    const baseHeight = 140;
+                    const finalWidth = baseHeight * aspect * l.scale;
+                    const finalHeight = baseHeight * l.scale;
+
+                    const faceY = startY - (finalHeight - boxSize) / 2 + l.offsetY;
+                    const faceX = startX - finalWidth + 20 + l.offsetX;
+                    
+                    ctx.drawImage(img, faceX, faceY, finalWidth, finalHeight);
+
+                    if (isEditor && i === selectedIdx) {
+                        ctx.strokeStyle = "#00FF00";
+                        ctx.lineWidth = 4;
+                        ctx.setLineDash([10, 10]);
+                        ctx.strokeRect(faceX, faceY, finalWidth, finalHeight);
+                        ctx.setLineDash([]);
+                    }
+                }
+            });
+        }
+
+        function roundRect(ctx, x, y, width, height, r) {
+            let tl = 0, tr = 0, br = 0, bl = 0;
+            if (typeof r === 'number') { tl = tr = br = bl = r; } 
+            else if (Array.isArray(r)) {
+                tl = r[0] || 0; tr = r[1] !== undefined ? r[1] : tl;
+                br = r[2] !== undefined ? r[2] : tl; bl = r[3] !== undefined ? r[3] : tr;
+            }
+            ctx.beginPath();
+            ctx.moveTo(x + tl, y);
+            ctx.lineTo(x + width - tr, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + tr);
+            ctx.lineTo(x + width, y + height - br);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - br, y + height);
+            ctx.lineTo(x + bl, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - bl);
+            ctx.lineTo(x, y + tl);
+            ctx.quadraticCurveTo(x, y, x + tl, y);
+            ctx.closePath();
+        }
+
+        // --- MUS-INTERAKTION ---
+        const editorCanvas = document.getElementById('canvasEditor');
+
+        editorCanvas.addEventListener('mousedown', (e) => {
+            if(isRecording) return;
+            const rect = editorCanvas.getBoundingClientRect();
+            const scaleX = editorCanvas.width / rect.width;
+            const scaleY = editorCanvas.height / rect.height;
+            const mouseX = (e.clientX - rect.left) * scaleX;
+            const mouseY = (e.clientY - rect.top) * scaleY;
+
+            let found = -1;
+            const boxSize = 96;
+            const startX = 220;
+            const rowSpacing = 28;
+
+            for (let i = leaders.length - 1; i >= 0; i--) {
+                const l = leaders[i];
+                if (!loadedImages[l.img]) continue;
+                
+                const startY = 320 + i * (boxSize + rowSpacing);
+                const img = loadedImages[l.img];
+                const aspect = img.naturalWidth / img.naturalHeight;
+                const baseHeight = 140;
+                const finalWidth = baseHeight * aspect * l.scale;
+                const finalHeight = baseHeight * l.scale;
+
+                const faceY = startY - (finalHeight - boxSize) / 2 + l.offsetY;
+                const faceX = startX - finalWidth + 20 + l.offsetX;
+
+                if (mouseX >= faceX && mouseX <= faceX + finalWidth &&
+                    mouseY >= faceY && mouseY <= faceY + finalHeight) {
+                    found = i;
+                    break;
+                }
+            }
+
+            selectedIdx = found;
+            const scaleSlider = document.getElementById('selected-scale');
+            const nameLabel = document.getElementById('selected-name');
+
+            if (found !== -1) {
+                isDragging = true;
+                dragStartX = mouseX;
+                dragStartY = mouseY;
+                
+                nameLabel.innerText = "Vald: " + leaders[found].name;
+                nameLabel.style.color = "#00FF00";
+                scaleSlider.disabled = false;
+                scaleSlider.value = leaders[found].scale;
+                
+                document.getElementById('out-scale').innerText = leaders[found].scale.toFixed(2);
+                document.getElementById('out-x').innerText = Math.round(leaders[found].offsetX);
+                document.getElementById('out-y').innerText = Math.round(leaders[found].offsetY);
+                
+            } else {
+                nameLabel.innerText = "Klicka på ett ansikte i diagrammet";
+                nameLabel.style.color = "#ffffff";
+                scaleSlider.disabled = true;
+                
+                document.getElementById('out-scale').innerText = "-";
+                document.getElementById('out-x').innerText = "-";
+                document.getElementById('out-y').innerText = "-";
+            }
+            drawCharts();
+        });
+
+        editorCanvas.addEventListener('mousemove', (e) => {
+            if (!isDragging || selectedIdx === -1 || isRecording) return;
+            const rect = editorCanvas.getBoundingClientRect();
+            const scaleX = editorCanvas.width / rect.width;
+            const scaleY = editorCanvas.height / rect.height;
+            const mouseX = (e.clientX - rect.left) * scaleX;
+            const mouseY = (e.clientY - rect.top) * scaleY;
+
+            const dx = mouseX - dragStartX;
+            const dy = mouseY - dragStartY;
+
+            leaders[selectedIdx].offsetX += dx;
+            leaders[selectedIdx].offsetY += dy;
+            
+            document.getElementById('out-x').innerText = Math.round(leaders[selectedIdx].offsetX);
+            document.getElementById('out-y').innerText = Math.round(leaders[selectedIdx].offsetY);
+
+            dragStartX = mouseX;
+            dragStartY = mouseY;
+            drawCharts();
+        });
+
+        editorCanvas.addEventListener('mouseup', () => { isDragging = false; });
+        editorCanvas.addEventListener('mouseleave', () => { isDragging = false; });
+
+        // --- EXPORT & ANIMATION ---
+        function downloadPNG() {
+            try {
+                const canvas = document.getElementById('canvasResult');
+                const link = document.createElement('a');
+                // Spara med rätt namn beroende på om green screen är aktiv eller inte
+                link.download = useGreenScreen ? `fortroendebarometer-greenscreen.png` : `fortroendebarometer-transparent.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            } catch (e) {
+                alert("Nedladdningen kan vara blockerad lokalt. Ladda upp till GitHub för bästa funktion!");
+            }
+        }
+
+        let mediaRecorder;
+        let recordedChunks = [];
+        let animStartTime = null;
+        const animDuration = 1500; 
+        const holdDuration = 1500; 
+
+        function startRecording() {
+            const canvas = document.getElementById('canvasResult');
+            const stream = canvas.captureStream(60); 
+            const options = { mimeType: 'video/webm; codecs=vp9' };
+            
+            try {
+                mediaRecorder = new MediaRecorder(stream, options);
+            } catch (e) {
+                try {
+                    mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp8' });
+                } catch(e2) {
+                    mediaRecorder = new MediaRecorder(stream);
+                }
+            }
+
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) recordedChunks.push(e.data);
+            };
+
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = useGreenScreen ? 'fortroendebarometer-anim-greenscreen.webm' : 'fortroendebarometer-anim-transparent.webm';
+                link.click();
+                URL.revokeObjectURL(url);
+                
+                isRecording = false;
+                document.getElementById('btn-video').disabled = false;
+                document.getElementById('btn-png').disabled = false;
+                document.getElementById('greenscreen-toggle').disabled = false;
+                document.getElementById('rec-status').style.display = 'none';
+                createInputs(); 
+                drawCharts();
+            };
+
+            isRecording = true;
+            document.getElementById('btn-video').disabled = true;
+            document.getElementById('btn-png').disabled = true;
+            document.getElementById('greenscreen-toggle').disabled = true;
+            document.getElementById('rec-status').style.display = 'block';
+            createInputs(); 
+            
+            recordedChunks = [];
+            mediaRecorder.start();
+            
+            animStartTime = performance.now();
+            requestAnimationFrame(renderFrame);
+        }
+
+        function renderFrame(timestamp) {
+            const elapsed = timestamp - animStartTime;
+            let rawProgress = elapsed / animDuration;
+            
+            if (rawProgress > 1) rawProgress = 1;
+            
+            const progress = 1 - Math.pow(1 - rawProgress, 4);
+
+            const canvas = document.getElementById('canvasResult');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            drawTrust(ctx, false, progress, useGreenScreen);
+
+            if (rawProgress < 1) {
+                requestAnimationFrame(renderFrame);
+            } else if (elapsed < animDuration + holdDuration) {
+                requestAnimationFrame(renderFrame);
+            } else {
+                if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                    mediaRecorder.stop();
+                }
+            }
+        }
+
+        window.onload = () => {
+            createInputs();
+            preloadImages();
+        };
+    </script>
+</body>
+</html>
