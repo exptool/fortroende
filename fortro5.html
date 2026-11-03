@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Förtroendebarometer - Transparent PNG-sekvens</title>
+    <!-- Laddar in JSZip för att packa PNG-sekvens direkt i webbläsaren -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        @font-face {
+            font-family: 'Siri Expressen Black Condensed';
+            src: url('SiriExpressen-BlackCondensed.otf') format('opentype');
+        }
+        body { 
+            background: #1e1e1e; 
+            color: #fff; 
+            font-family: sans-serif; 
+            margin: 0;
+            padding: 2vw;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        .app-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            justify-content: center;
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+        h2 { 
+            margin-top: 0; 
+            font-family: 'Siri Expressen Black Condensed', sans-serif;
+            font-size: clamp(20px, 1.5vw, 26px);
+            border-bottom: 2px solid #444;
+            padding-bottom: 10px;
+        }
+        .panel { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 15px; 
+            flex: 1 1 350px;
+            max-width: 450px;
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            box-sizing: border-box;
+        }
+        .party-input-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #333;
+        }
+        input[type="number"] {
+            background: #ffffff;
+            border: 1px solid #ccc;
+            color: #000000;
+            border-radius: 4px;
+            text-align: right;
+            width: 70px;
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+            padding-right: 10px;
+            font-size: 18px;
+            height: 34px;
+        }
+        input[type="range"] {
+            width: 100%;
+            margin-top: 8px;
+            cursor: pointer;
+        }
+        .editor-controls {
+            background: #333;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            border: 1px solid #555;
+        }
+        .value-readout {
+            margin-top: 10px; 
+            padding: 10px; 
+            background: #111; 
+            border-radius: 6px; 
+            font-family: monospace; 
+            font-size: 15px; 
+            color: #00FF00;
+            border: 1px solid #00FF00;
+        }
+        button {
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: transform 0.1s, opacity 0.2s;
+            width: 100%;
+            font-family: 'Siri Expressen Black Condensed', sans-serif; 
+            font-size: clamp(18px, 1.5vw, 22px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            padding: 15px;
+            margin-top: 5px;
+        }
+        button:hover { 
+            opacity: 0.9; 
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            background: #666 !important;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        /* Fast 9:16 proportion med aspect-ratio och object-fit för att undvika oproportionerlig skalning */
+        .canvas-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #canvasEditor, #canvasResult { 
+            width: 100%;
+            height: auto;
+            aspect-ratio: 9 / 16;
+            max-height: 70vh;
+            object-fit: contain;
+            background-image: linear-gradient(45deg, #333 25%, transparent 25%), linear-gradient(-45deg, #333 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #333 75%), linear-gradient(-45deg, transparent 75%, #333 75%);
+            background-size: 20px 20px; 
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            border: 2px solid #555;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+        #canvasEditor {
+            cursor: grab;
+        }
+        #canvasEditor:active {
+            cursor: grabbing;
+        }
+
+        .guide-box {
+            background: #1f1f1f;
+            border: 1px solid #444;
+            border-left: 4px solid #006DBB;
+            border-radius: 8px;
+            padding: 14px 16px;
+            margin-top: 15px;
+            font-family: Arial, sans-serif;
+            font-size: 13px;
+            line-height: 1.5;
+            color: #ddd;
+        }
+        .guide-box h4 {
+            margin: 0 0 8px 0;
+            color: #fff;
+            font-size: 14px;
+            font-family: 'Siri Expressen Black Condensed', sans-serif;
+            letter-spacing: 0.5px;
+        }
+        .guide-box ol {
+            margin: 0;
+            padding-left: 18px;
+        }
+        .guide-box li {
+            margin-bottom: 5px;
+        }
+        .guide-box strong {
+            color: #fff;
+        }
+
+        .font-preload { font-family: 'Siri Expressen Black Condensed'; visibility: hidden; position: absolute; }
+        .info-text { font-size: 14px; color: #aaa; font-family: Arial, sans-serif; line-height: 1.4; }
+    </style>
+</head>
+<body>
+    <div class="font-preload">Preload</div>
+
+    <div class="app-container">
+        <!-- STEG 1: DATA -->
+        <div class="panel">
+            <h2>1. Fyll i värden (%)</h2>
+            <div id="inputs"></div>
+        </div>
+
+        <!-- STEG 2: REDIGERING -->
+        <div class="panel">
+            <h2>2. Redigera ansikten</h2>
+            <p class="info-text">Klicka och dra i ansiktena direkt i bilden nedan för att finjustera vid behov.</p>
+            <div class="canvas-container">
+                <canvas id="canvasEditor" width="1080" height="1920"></canvas>
+            </div>
+            
+            <div class="editor-controls">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 5px;">
+                    <strong id="selected-name" style="font-family: Arial, sans-serif;">Klicka på ett ansikte i diagrammet</strong>
+                </div>
+                <label style="font-size: 13px; font-family: Arial, sans-serif; color: #ccc;">Ändra storlek på valt ansikte:</label>
+                <input type="range" id="selected-scale" min="0.5" max="2" step="0.02" value="1" disabled oninput="updateScale()">
+                
+                <div class="value-readout">
+                    <div>Scale: <span id="out-scale">-</span></div>
+                    <div>X-Offset: <span id="out-x">-</span></div>
+                    <div>Y-Offset: <span id="out-y">-</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEG 3: RESULTAT & EXPORT -->
+        <div class="panel" style="display: flex; flex-direction: column;">
+            <h2>3. Slutresultat & Export</h2>
+            <p class="info-text">Ladda ner stillbild eller en transparent PNG-sekvens (ZIP) redo för Premiere Pro.</p>
+            <div class="canvas-container">
+                <canvas id="canvasResult" width="1080" height="1920"></canvas>
+            </div>
+
+            <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px; padding-top: 15px;">
+                <button id="btn-png" onclick="downloadPNG()" style="background: #006DBB; color: white;">1. Ladda ner Stillbild (PNG)</button>
+                <button id="btn-zip" onclick="exportPNGSequenceZIP()" style="background: #E50000; color: white;">2. Ladda ner Animerad PNG-sekvens (ZIP)</button>
+                <div id="rec-status" style="display: none; text-align: center; color: #00FF00; font-family: Arial; font-weight: bold; font-size: 14px;">Packar bildrutor till ZIP... Vänligen vänta.</div>
+
+                <!-- SNABBGUIDE PREMIERE PRO -->
+                <div class="guide-box">
+                    <h4>Så här använder du den animerade PNG-grafiken:</h4>
+                    <ol>
+                        <li>Packa upp den nedladdade ZIP-filen.</li>
+                        <li>Importera i Premiere Pro (välj <strong>Show Options</strong> i importfönstret).</li>
+                        <li>Markera rutan <strong>"Image Sequence"</strong> och klicka på filen med <strong>lägst siffra</strong> (<code>fortroende_000.png</code>) — detta är viktigt!</li>
+                        <li>Nu när du lägger in PNG-sekvensen i tidslinjen beter den sig som en färdig animation med full transparens.</li>
+                        <li>Behöver du att animationen ligger kvar på sista framen? Importera då filen med högst siffra (sista framen) som stillbild och haka på i slutet, eller använd funktionen <strong>"Add Frame Hold"</strong> direkt i Premiere.</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const leaders = [
+            { id: 'V', name: 'Nooshi Dadgostar', color: '#DB0000', img: 'V.png', value: 0, scale: 1.48, offsetX: 50, offsetY: 23 },
+            { id: 'S', name: 'Magdalena Andersson', color: '#FF0027', img: 'S.png', value: 0, scale: 0.94, offsetX: 2, offsetY: -5 },
+            { id: 'MP', name: 'Amanda Lind', color: '#30A234', img: 'MP1.png', value: 0, scale: 1.00, offsetX: 14, offsetY: -7 },
+            { id: 'MP', name: 'Daniel Helldén', color: '#30A234', img: 'MP2.png', value: 0, scale: 0.92, offsetX: 12, offsetY: 0 },
+            { id: 'C', name: 'Elisabeth Thand Ringqvist', color: '#004937', img: 'C.png', value: 0, scale: 1.04, offsetX: 17, offsetY: 2 },
+            { id: 'L', name: 'Simona Mohamsson', color: '#006DBB', img: 'L.png', value: 0, scale: 0.88, offsetX: 21, offsetY: -5 },
+            { id: 'KD', name: 'Ebba Busch', color: '#0D15BC', img: 'KD.png', value: 0, scale: 1.36, offsetX: 21, offsetY: 24 },
+            { id: 'M', name: 'Ulf Kristersson', color: '#195393', img: 'M.png', value: 0, scale: 0.96, offsetX: 5, offsetY: -5 },
+            { id: 'SD', name: 'Jimmie Åkesson', color: '#FFD500', img: 'SD.png', value: 0, scale: 0.96, offsetX: 5, offsetY: 2 }
+        ];
+
+        const loadedImages = {};
+        let imagesLoaded = 0;
+        
+        let selectedIdx = -1;
+        let isDragging = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let isBusy = false;
+
+        function preloadImages() {
+            leaders.forEach(leader => {
+                const img = new Image();
+                img.onload = () => {
+                    loadedImages[leader.img] = img;
+                    imagesLoaded++;
+                    if (imagesLoaded === leaders.length) drawCharts();
+                };
+                img.onerror = () => {
+                    console.error("Kunde inte ladda bild:", leader.img);
+                    imagesLoaded++;
+                    if (imagesLoaded === leaders.length) drawCharts();
+                };
+                img.src = leader.img;
+            });
+        }
+
+        function createInputs() {
+            const container = document.getElementById('inputs');
+            container.innerHTML = '';
+            leaders.forEach((l, i) => {
+                container.innerHTML += `
+                <div class="party-input-row">
+                    <div style="display: flex; align-items: center;">
+                        <div style="width: 18px; height: 18px; background-color: ${l.color}; border-radius: 4px; margin-right: 12px; border: 1px solid rgba(255,255,255,0.2);"></div>
+                        <label style="color: #ffffff; font-size: clamp(16px, 1vw, 20px); font-family: 'Siri Expressen Black Condensed', sans-serif; letter-spacing: 0.5px;">${l.name}</label>
+                    </div>
+                    <input type="number" id="val_${i}" value="${l.value}" step="1" oninput="updateValues()" ${isBusy ? 'disabled' : ''}>
+                </div>`;
+            });
+        }
+
+        function updateValues() {
+            if (isBusy) return;
+            leaders.forEach((l, i) => {
+                const valInput = document.getElementById(`val_${i}`);
+                if (valInput) l.value = parseInt(valInput.value) || 0;
+            });
+            drawCharts();
+        }
+
+        function updateScale() {
+            if (isBusy) return;
+            if (selectedIdx !== -1) {
+                const scaleSlider = document.getElementById('selected-scale');
+                leaders[selectedIdx].scale = parseFloat(scaleSlider.value);
+                document.getElementById('out-scale').innerText = leaders[selectedIdx].scale.toFixed(2);
+                drawCharts();
+            }
+        }
+
+        function drawCharts() {
+            if (isBusy) return; 
+            
+            document.fonts.ready.then(() => {
+                const editorCtx = document.getElementById('canvasEditor').getContext('2d');
+                const resultCtx = document.getElementById('canvasResult').getContext('2d');
+                
+                editorCtx.clearRect(0, 0, 1080, 1920);
+                resultCtx.clearRect(0, 0, 1080, 1920);
+
+                drawTrust(editorCtx, true, 1);
+                drawTrust(resultCtx, false, 1);
+            });
+        }
+
+        function applyGlobalShadow(ctx) {
+            ctx.shadowColor = "rgba(0,0,0,0.6)"; 
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
+        }
+
+        function resetShadow(ctx) {
+            ctx.shadowColor = "transparent";
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
+        }
+
+        function drawTrust(ctx, isEditor, progress) {
+            const startX = 220; 
+            const boxSize = 96;
+            const gap = 16;
+            const rowSpacing = 28; 
+            const scale = 8.5; 
+
+            // DEL 1: RITA DIAGRAMMET (LÄNGST BAK)
+            leaders.forEach((l, i) => {
+                const startY = 320 + i * (boxSize + rowSpacing);
+                const currentVal = l.value * progress;
+                
+                applyGlobalShadow(ctx);
+                ctx.fillStyle = l.color;
+                roundRect(ctx, startX, startY, boxSize, boxSize, [24, 0, 24, 0]);
+                ctx.fill();
+                
+                resetShadow(ctx);
+                ctx.strokeStyle = "white";
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                applyGlobalShadow(ctx);
+                ctx.fillStyle = "white";
+                ctx.font = "50px 'Siri Expressen Black Condensed', sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(l.id, startX + boxSize/2, startY + boxSize/2 + 5);
+
+                const barWidth = currentVal * scale;
+                const barX = startX + boxSize + gap;
+                
+                if (barWidth > 0) {
+                    applyGlobalShadow(ctx);
+                    ctx.fillStyle = l.color;
+                    roundRect(ctx, barX, startY, barWidth, boxSize, [24, 0, 24, 0]);
+                    ctx.fill();
+                    resetShadow(ctx);
+                    ctx.stroke();
+                }
+
+                applyGlobalShadow(ctx);
+                ctx.fillStyle = "white";
+                ctx.font = "75px 'Siri Expressen Black Condensed', sans-serif";
+                ctx.textAlign = "left";
+                const displayVal = Math.round(currentVal) + "%";
+                ctx.fillText(displayVal, barX + Math.max(barWidth, 0) + 20, startY + boxSize/2 + 5);
+                resetShadow(ctx);
+            });
+
+            // DEL 2: RITA ANSIKTENA (Ovanpå allt)
+            leaders.forEach((l, i) => {
+                const startY = 320 + i * (boxSize + rowSpacing);
+                
+                if (loadedImages[l.img]) {
+                    const img = loadedImages[l.img];
+                    const aspect = img.naturalWidth / img.naturalHeight;
+                    const baseHeight = 140;
+                    const finalWidth = baseHeight * aspect * l.scale;
+                    const finalHeight = baseHeight * l.scale;
+
+                    const faceY = startY - (finalHeight - boxSize) / 2 + l.offsetY;
+                    const faceX = startX - finalWidth + 20 + l.offsetX;
+                    
+                    ctx.drawImage(img, faceX, faceY, finalWidth, finalHeight);
+
+                    if (isEditor && i === selectedIdx) {
+                        ctx.strokeStyle = "#00FF00";
+                        ctx.lineWidth = 4;
+                        ctx.setLineDash([10, 10]);
+                        ctx.strokeRect(faceX, faceY, finalWidth, finalHeight);
+                        ctx.setLineDash([]);
+                    }
+                }
+            });
+        }
+
+        function roundRect(ctx, x, y, width, height, r) {
+            let tl = 0, tr = 0, br = 0, bl = 0;
+            if (typeof r === 'number') { tl = tr = br = bl = r; } 
+            else if (Array.isArray(r)) {
+                tl = r[0] || 0; tr = r[1] !== undefined ? r[1] : tl;
+                br = r[2] !== undefined ? r[2] : tl; bl = r[3] !== undefined ? r[3] : tr;
+            }
+            ctx.beginPath();
+            ctx.moveTo(x + tl, y);
+            ctx.lineTo(x + width - tr, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + tr);
+            ctx.lineTo(x + width, y + height - br);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - br, y + height);
+            ctx.lineTo(x + bl, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - bl);
+            ctx.lineTo(x + tl);
+            ctx.quadraticCurveTo(x, y, x + tl, y);
+            ctx.closePath();
+        }
+
+        // --- MUS-INTERAKTION ---
+        const editorCanvas = document.getElementById('canvasEditor');
+
+        editorCanvas.addEventListener('mousedown', (e) => {
+            if (isBusy) return;
+            const rect = editorCanvas.getBoundingClientRect();
+            const scaleX = editorCanvas.width / rect.width;
+            const scaleY = editorCanvas.height / rect.height;
+            const mouseX = (e.clientX - rect.left) * scaleX;
+            const mouseY = (e.clientY - rect.top) * scaleY;
+
+            let found = -1;
+            const boxSize = 96;
+            const startX = 220;
+            const rowSpacing = 28;
+
+            for (let i = leaders.length - 1; i >= 0; i--) {
+                const l = leaders[i];
+                if (!loadedImages[l.img]) continue;
+                
+                const startY = 320 + i * (boxSize + rowSpacing);
+                const img = loadedImages[l.img];
+                const aspect = img.naturalWidth / img.naturalHeight;
+                const baseHeight = 140;
+                const finalWidth = baseHeight * aspect * l.scale;
+                const finalHeight = baseHeight * l.scale;
+
+                const faceY = startY - (finalHeight - boxSize) / 2 + l.offsetY;
+                const faceX = startX - finalWidth + 20 + l.offsetX;
+
+                if (mouseX >= faceX && mouseX <= faceX + finalWidth &&
+                    mouseY >= faceY && mouseY <= faceY + finalHeight) {
+                    found = i;
+                    break;
+                }
+            }
+
+            selectedIdx = found;
+            const scaleSlider = document.getElementById('selected-scale');
+            const nameLabel = document.getElementById('selected-name');
+
+            if (found !== -1) {
+                isDragging = true;
+                dragStartX = mouseX;
+                dragStartY = mouseY;
+                
+                nameLabel.innerText = "Vald: " + leaders[found].name;
+                nameLabel.style.color = "#00FF00";
+                scaleSlider.disabled = false;
+                scaleSlider.value = leaders[found].scale;
+                
+                document.getElementById('out-scale').innerText = leaders[found].scale.toFixed(2);
+                document.getElementById('out-x').innerText = Math.round(leaders[found].offsetX);
+                document.getElementById('out-y').innerText = Math.round(leaders[found].offsetY);
+            } else {
+                nameLabel.innerText = "Klicka på ett ansikte i diagrammet";
+                nameLabel.style.color = "#ffffff";
+                scaleSlider.disabled = true;
+                
+                document.getElementById('out-scale').innerText = "-";
+                document.getElementById('out-x').innerText = "-";
+                document.getElementById('out-y').innerText = "-";
+            }
+            drawCharts();
+        });
+
+        editorCanvas.addEventListener('mousemove', (e) => {
+            if (!isDragging || selectedIdx === -1 || isBusy) return;
+            const rect = editorCanvas.getBoundingClientRect();
+            const scaleX = editorCanvas.width / rect.width;
+            const scaleY = editorCanvas.height / rect.height;
+            const mouseX = (e.clientX - rect.left) * scaleX;
+            const mouseY = (e.clientY - rect.top) * scaleY;
+
+            const dx = mouseX - dragStartX;
+            const dy = mouseY - dragStartY;
+
+            leaders[selectedIdx].offsetX += dx;
+            leaders[selectedIdx].offsetY += dy;
+            
+            document.getElementById('out-x').innerText = Math.round(leaders[selectedIdx].offsetX);
+            document.getElementById('out-y').innerText = Math.round(leaders[selectedIdx].offsetY);
+
+            dragStartX = mouseX;
+            dragStartY = mouseY;
+            drawCharts();
+        });
+
+        editorCanvas.addEventListener('mouseup', () => { isDragging = false; });
+        editorCanvas.addEventListener('mouseleave', () => { isDragging = false; });
+
+        // --- EXPORT: STILLBILD (PNG) ---
+        function downloadPNG() {
+            try {
+                const canvas = document.getElementById('canvasResult');
+                const link = document.createElement('a');
+                link.download = `fortroendebarometer.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            } catch (e) {
+                alert("Nedladdningen kan vara blockerad lokalt. Ladda upp till GitHub för bästa funktion!");
+            }
+        }
+
+        // --- EXPORT: ANIMERAD TRANSPARENT PNG-SEKVENS (ZIP) ---
+        async function exportPNGSequenceZIP() {
+            if (typeof JSZip === "undefined") {
+                alert("JSZip-biblioteket kunde inte laddas. Kontrollera internetanslutningen!");
+                return;
+            }
+
+            const canvas = document.getElementById('canvasResult');
+            const ctx = canvas.getContext('2d');
+            
+            isBusy = true;
+            document.getElementById('btn-zip').disabled = true;
+            document.getElementById('btn-png').disabled = true;
+            const statusEl = document.getElementById('rec-status');
+            statusEl.style.display = 'block';
+
+            const fps = 30; // 30 fps ger bra flyt och rimlig filstorlek
+            const animSec = 1.5;
+            const holdSec = 1.5;
+            const totalFrames = Math.round((animSec + holdSec) * fps);
+
+            const zip = new JSZip();
+
+            for (let frame = 0; frame <= totalFrames; frame++) {
+                const currentTime = frame / fps;
+                let rawProgress = currentTime / animSec;
+                if (rawProgress > 1) rawProgress = 1;
+                const progress = 1 - Math.pow(1 - rawProgress, 4);
+
+                // Rensa till 100% transparens
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawTrust(ctx, false, progress);
+
+                const dataUrl = canvas.toDataURL('image/png');
+                const base64Data = dataUrl.replace(/^data:image\/png;base64,/, '');
+
+                const frameName = `fortroende_${String(frame).padStart(3, '0')}.png`;
+                zip.file(frameName, base64Data, { base64: true });
+
+                statusEl.innerText = `Genererar bildrutor: ${frame} / ${totalFrames}...`;
+                await new Promise(r => setTimeout(r, 4));
+            }
+
+            statusEl.innerText = "Kompakterar ZIP-fil...";
+            const zipContent = await zip.generateAsync({ type: 'blob' });
+
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(zipContent);
+            link.download = 'fortroendebarometer_animering_sekvens.zip';
+            link.click();
+            URL.revokeObjectURL(link.href);
+
+            isBusy = false;
+            document.getElementById('btn-zip').disabled = false;
+            document.getElementById('btn-png').disabled = false;
+            statusEl.style.display = 'none';
+            drawCharts();
+        }
+
+        window.onload = () => {
+            createInputs();
+            preloadImages();
+        };
+    </script>
+</body>
+</html>
