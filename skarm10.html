@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <title>Sändningsgrafik 1920x1080</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;800&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            /* Ändrat till transparent för sändning! */
+            background-color: transparent; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .graphic-container {
+            width: 1920px;
+            height: 1080px;
+            padding: 70px 90px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        
+        /* Den stora bakgrundsplattan */
+        .main-background-plate {
+            position: absolute;
+            top: 50px;
+            left: 60px;
+            right: 60px;
+            bottom: 50px;
+            background-color: rgba(0, 0, 0, 0.4); /* 40% svart transparens */
+            border-radius: 40px 0 40px 0;
+            z-index: 0;
+        }
+
+        .content-wrapper {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .header {
+            background-color: #ffffff;
+            border-radius: 20px 0 20px 0;
+            padding: 15px 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 38px;
+            font-weight: 800;
+            margin-bottom: 40px;
+            color: #000;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 25px 40px;
+            flex-grow: 1;
+        }
+
+        .group-card {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .group-header {
+            background-color: #ffffff;
+            color: #000000;
+            text-align: center;
+            padding: 10px 15px;
+            font-size: 26px;
+            font-weight: 800;
+            border-radius: 20px 0 20px 0;
+            margin-bottom: 12px;
+        }
+
+        .team-row {
+            display: flex;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.3); /* 30% svart transparens på lagblocken */
+            border-radius: 15px 0 15px 0;
+            padding: 12px 20px;
+            font-size: 24px;
+            font-weight: 800;
+            color: #ffffff;
+            margin-bottom: 8px;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.7);
+        }
+        
+        .team-row:last-child {
+            margin-bottom: 0;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="graphic-container">
+        
+        <div class="main-background-plate"></div>
+        
+        <div class="content-wrapper">
+            <div class="header">
+                <span>SVENSKA CUPEN HERRAR</span>
+            </div>
+
+            <div class="grid-container">
+                <!-- Grupp 1 -->
+                <div class="group-card">
+                    <div class="group-header">GRUPP 1</div>
+                    <div class="team-row">1. Lag 1</div>
+                    <div class="team-row">2. Lag 16</div>
+                    <div class="team-row">3. Lottning</div>
+                    <div class="team-row">4. Lottning</div>
+                </div>
+
+                <!-- Grupp 2 -->
+                <div class="group-card">
+                    <div class="group-header">GRUPP 2</div>
+                    <div class="team-row">1. Lag 2</div>
+                    <div class="team-row">2. Lag 15</div>
+                    <div class="team-row">3. Lottning</div>
+                    <div class="team-row">4. Lottning</div>
+                </div>
+
+                <!-- Grupp 3 -->
+                <div class="group-card">
+                    <div class="group-header">GRUPP 3</div>
+                    <div class="team-row">1. Lag 3</div>
+                    <div class="team-row">2. Lag 14</div>
+                    <div class="team-row">3. Lottning</div>
+                    <div class="team-row">4. Lottning</div>
+                </div>
+
+                <!-- Grupp 4 -->
+                <div class="group-card">
+                    <div class="group-header">GRUPP 4</div>
+                    <div class="team-row">1. Lag 4</div>
+                    <div class="team-row">2. Lag 13</div>
+                    <div class="team-row">3. Lottning</div>
+                    <div class="team-row">4. Lottning</div>
+                </div>
+
+                <!-- Grupp 5 -->
+                <div class="group-card">
+                    <div class="group-header">GRUPP 5</div>
+                    <div class="team-row">1. Lag 5</div>
+                    <div class="team-row">2. Lag 12</div>
+                    <div class="team-row">3. Lottning</div>
+                    <div class="team-row">4. Lottning</div>
+                </div>
+
+                <!-- Grupp 6 -->
+                <div class="group-card">
+                    <div class="group-header">GRUPP 6</div>
+                    <div class="team-row">1. Lag 6</div>
+                    <div class="team-row">2. Lag 11</div>
+                    <div class="team-row">3. Lottning</div>
+                    <div class="team-row">4. Lottning</div>
+                </div>
+
+                <!-- Grupp 7 -->
+                <div class="group-card">
+                    <div class="group-header">GRUPP 7</div>
+                    <div class="team-row">1. Lag 7</div>
+                    <div class="team-row">2. Lag 10</div>
+                    <div class="team-row">3. Lottning</div>
+                    <div class="team-row">4. Lottning</div>
+                </div>
+
+                <!-- Grupp 8 -->
+                <div class="group-card">
+                    <div class="group-header">GRUPP 8</div>
+                    <div class="team-row">1. Lag 8</div>
+                    <div class="team-row">2. Lag 9</div>
+                    <div class="team-row">3. Lottning</div>
+                    <div class="team-row">4. Lottning</div>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+</body>
+</html>
